@@ -1,3 +1,14 @@
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+const upload = multer({ 
+  dest: 'uploads/',
+  limits: { fileSize: 5 * 1024 * 1024 }
+});
+
+// Uploads klasörü oluştur
+if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
 const express = require('express');
 const cors = require('cors');
 
@@ -129,6 +140,48 @@ app.get('/api/ilceler', function(req, res) {
   res.json({ basari: true, veri: ['Marmaris', 'Bodrum', 'Fethiye', 'Datca', 'Milas'] });
 });
 
+// GÖRSEL ARAMA
+app.post('/api/gorsel-ara', upload.single('fotograf'), function(req, res) {
+  if (!req.file) return res.status(400).json({ basari: false, mesaj: 'Fotograf yuklenemedi' });
+  
+  var dosyaAdi = req.file.originalname.toLowerCase();
+  var kategori = null;
+  var anahtar = null;
+
+  // Yemek kelimeleri
+  var yemekler = ['pizza', 'kebap', 'burger', 'sandvic', 'lahmacun', 'pide', 'döner', 'doner', 'tavuk', 'et', 'yemek', 'food', 'meal'];
+  // Ürün kelimeleri  
+  var urunler = ['market', 'meyve', 'sebze', 'ekmek', 'süt', 'sut', 'et', 'kiyma', 'product'];
+  // Hizmet kelimeleri
+  var hizmetler = ['saç', 'sac', 'tesisat', 'temizlik', 'tamir', 'berber', 'service'];
+
+  for (var i = 0; i < yemekler.length; i++) {
+    if (dosyaAdi.indexOf(yemekler[i]) > -1) { kategori = 'yemek'; anahtar = yemekler[i]; break; }
+  }
+  if (!kategori) for (var i = 0; i < urunler.length; i++) {
+    if (dosyaAdi.indexOf(urunler[i]) > -1) { kategori = 'urun'; anahtar = urunler[i]; break; }
+  }
+  if (!kategori) for (var i = 0; i < hizmetler.length; i++) {
+    if (dosyaAdi.indexOf(hizmetler[i]) > -1) { kategori = 'hizmet'; anahtar = hizmetler[i]; break; }
+  }
+
+  // Sonuçları bul
+  var sonuclar = esnaflar.filter(function(e) {
+    if (kategori && e.kategori !== kategori) return false;
+    return true;
+  });
+
+  // Dosyayı sil
+  fs.unlink(req.file.path, function() {});
+
+  res.json({ 
+    basari: true, 
+    kategori: kategori || 'tumu',
+    anahtar: anahtar,
+    mesaj: kategori ? (kategori + ' kategorisinde esnaflar bulundu') : 'Tum esnaflar listelendi',
+    veri: sonuclar
+  });
+});
 app.listen(3000, function() {
   console.log('API calisiyor: http://localhost:3000');
 });
