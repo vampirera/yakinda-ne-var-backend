@@ -42,7 +42,9 @@ app.get('/api/esnaflar/:id', function(req, res) {
     obj.mesafe_text = km < 1 ? Math.round(km * 1000) + 'm' : km.toFixed(1) + 'km';
   }
   res.json({ basari: true, veri: obj });
-});, (req, res) => {
+});
+
+app.get('/api/esnaflar/:id', function(req, res) {
   const esnaf = esnaflar.find(e => e.id === parseInt(req.params.id));
   if (!esnaf) return res.status(404).json({ basari: false, mesaj: 'Esnaf bulunamadi' });
   res.json({ basari: true, veri: esnaf });
