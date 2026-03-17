@@ -10,6 +10,7 @@ cloudinary.config({
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
+
 console.log('Cloudinary:', process.env.CLOUDINARY_CLOUD_NAME, process.env.CLOUDINARY_API_KEY ? 'key:VAR' : 'key:YOK');
 
 const app = express();
@@ -19,13 +20,11 @@ app.use(express.json());
 if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
 const upload = multer({ dest: 'uploads/', limits: { fileSize: 5 * 1024 * 1024 } });
 
-// VERİTABANI
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
-// TABLOLARI OLUŞTUR
 async function tablolarOlustur() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS esnaflar (
@@ -48,18 +47,18 @@ async function tablolarOlustur() {
     )
   `);
   await pool.query(`
-   CREATE TABLE IF NOT EXISTS urunler (
-  id SERIAL PRIMARY KEY,
-  esnaf_id INTEGER REFERENCES esnaflar(id),
-  ad VARCHAR(255) NOT NULL,
-  fiyat DECIMAL(10,2) DEFAULT 0,
-  aciklama TEXT,
-  fotograf_url TEXT
-)
+    CREATE TABLE IF NOT EXISTS urunler (
+      id SERIAL PRIMARY KEY,
+      esnaf_id INTEGER REFERENCES esnaflar(id),
+      ad VARCHAR(255) NOT NULL,
+      fiyat DECIMAL(10,2) DEFAULT 0,
+      aciklama TEXT,
+      fotograf_url TEXT
+    )
   `);
-  await pool.query('ALTER TABLE urunler ADD COLUMN IF NOT EXISTS fotograf_url TEXT');
+  await pool.query(`ALTER TABLE urunler ADD COLUMN IF NOT EXISTS fotograf_url TEXT`);
   await pool.query(`
-        CREATE TABLE IF NOT EXISTS yorumlar (
+    CREATE TABLE IF NOT EXISTS yorumlar (
       id SERIAL PRIMARY KEY,
       esnaf_id INTEGER REFERENCES esnaflar(id),
       kullanici VARCHAR(255),
@@ -85,7 +84,6 @@ async function tablolarOlustur() {
     )
   `);
 
-  // Örnek esnaflar ekle (ilk çalıştırmada)
   var sayac = await pool.query('SELECT COUNT(*) FROM esnaflar');
   if (parseInt(sayac.rows[0].count) === 0) {
     var e1 = await pool.query(`INSERT INTO esnaflar (ad,kategori,ilce,adres,telefon,email,vergi_no,lat,lng,puan,yorum_sayisi,acik,onayli,onaylandi) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
@@ -128,10 +126,9 @@ function mesafeHesapla(lat1, lng1, lat2, lng2) {
 }
 
 app.get('/', function(req, res) {
-  res.json({ mesaj: 'Yakinda Ne Var API calisiyor!', versiyon: '4.0' });
+  res.json({ mesaj: 'Yakinda Ne Var API calisiyor!', versiyon: '4.1' });
 });
 
-// ESNAFLAR
 app.get('/api/esnaflar', async function(req, res) {
   try {
     var ilce = req.query.ilce, kategori = req.query.kategori;
@@ -139,7 +136,11 @@ app.get('/api/esnaflar', async function(req, res) {
     var lat = parseFloat(req.query.lat), lng = parseFloat(req.query.lng);
     var arama = req.query.arama ? req.query.arama.toLowerCase() : null;
 
-    var query = 'SELECT e.*, json_agg(DISTINCT jsonb_build_object(\\\\\'id\',u.id,\'ad\',u.ad,\'fiyat\',u.fiyat,\'fotograf_url\',u.fotograf_url,\'fotograf_url\',u.fotograf_url,\'fotograf_url\',u.fotograf_url,\'fotograf_url\',u.fotograf_url,\'aciklama\',u.aciklama,\'fotograf_url\',u.fotograf_url)) FILTER (WHERE u.id IS NOT NULL) as urunler FROM esnaflar e LEFT JOIN urunler u ON e.id=u.esnaf_id WHERE e.onaylandi=true';
+    var query = `SELECT e.*, 
+      json_agg(DISTINCT jsonb_build_object('id',u.id,'ad',u.ad,'fiyat',u.fiyat,'aciklama',u.aciklama,'fotograf_url',u.fotograf_url)) 
+      FILTER (WHERE u.id IS NOT NULL) as urunler 
+      FROM esnaflar e LEFT JOIN urunler u ON e.id=u.esnaf_id 
+      WHERE e.onaylandi=true`;
     var params = [];
     var pi = 1;
     if (ilce) { query += ' AND LOWER(e.ilce)=$'+pi; params.push(ilce.toLowerCase()); pi++; }
@@ -172,7 +173,17 @@ app.get('/api/esnaflar', async function(req, res) {
 
 app.get('/api/esnaflar/:id', async function(req, res) {
   try {
-    var result = await pool.query('SELECT e.*, json_agg(DISTINCT jsonb_build_object(\\\\\'id\',u.id,\'ad\',u.ad,\'fiyat\',u.fiyat,\'fotograf_url\',u.fotograf_url,\'fotograf_url\',u.fotograf_url,\'fotograf_url\',u.fotograf_url,\'fotograf_url\',u.fotograf_url,\'aciklama\',u.aciklama,\'fotograf_url\',u.fotograf_url)) FILTER (WHERE u.id IS NOT NULL) as urunler, json_agg(DISTINCT jsonb_build_object(\'id\',y.id,\'kullanici\',y.kullanici,\'puan\',y.puan,\'yorum\',y.yorum,\'tarih\',y.tarih)) FILTER (WHERE y.id IS NOT NULL) as yorumlar FROM esnaflar e LEFT JOIN urunler u ON e.id=u.esnaf_id LEFT JOIN yorumlar y ON e.id=y.esnaf_id WHERE e.id=$1 GROUP BY e.id', [req.params.id]);
+    var result = await pool.query(`
+      SELECT e.*, 
+        json_agg(DISTINCT jsonb_build_object('id',u.id,'ad',u.ad,'fiyat',u.fiyat,'aciklama',u.aciklama,'fotograf_url',u.fotograf_url)) 
+        FILTER (WHERE u.id IS NOT NULL) as urunler,
+        json_agg(DISTINCT jsonb_build_object('id',y.id,'kullanici',y.kullanici,'puan',y.puan,'yorum',y.yorum,'tarih',y.tarih)) 
+        FILTER (WHERE y.id IS NOT NULL) as yorumlar
+      FROM esnaflar e 
+      LEFT JOIN urunler u ON e.id=u.esnaf_id 
+      LEFT JOIN yorumlar y ON e.id=y.esnaf_id 
+      WHERE e.id=$1 GROUP BY e.id
+    `, [req.params.id]);
     if (!result.rows.length) return res.status(404).json({ basari: false, mesaj: 'Esnaf bulunamadi' });
     var e = result.rows[0];
     e.urunler = e.urunler || []; e.yorumlar = e.yorumlar || [];
@@ -186,7 +197,6 @@ app.get('/api/esnaflar/:id', async function(req, res) {
   } catch(err) { res.status(500).json({ basari: false, mesaj: err.message }); }
 });
 
-// ESNAF KAYIT
 app.post('/api/esnaf-kayit', upload.fields([{name:'vergi_levhasi',maxCount:1},{name:'urun_fotograflari',maxCount:10}]), async function(req, res) {
   try {
     var body = req.body;
@@ -207,27 +217,19 @@ app.post('/api/esnaf-kayit', upload.fields([{name:'vergi_levhasi',maxCount:1},{n
         if (adlar[i]) {
           var fotUrl = null;
           if (fotograflar[i]) {
-            console.log('Fotograflar:', fotograflar);
-console.log('Fotograf i:', fotograflar[i]);
-try {
-  var uploadResult = await cloudinary.uploader.upload(fotograflar[i].path, { folder: 'yakinda-ne-var/urunler' });
-  fotUrl = uploadResult.secure_url;
-  console.log('Upload basarili:', fotUrl);
-  fs.unlink(fotograflar[i].path, function(){});
-} catch(uploadErr) {
-  console.log('Upload hatasi:', uploadErr.message);
-}
+            try {
+              var uploadResult = await cloudinary.uploader.upload(fotograflar[i].path, { folder: 'yakinda-ne-var/urunler' });
+              fotUrl = uploadResult.secure_url;
+              console.log('Upload basarili:', fotUrl);
+              fs.unlink(fotograflar[i].path, function(){});
+            } catch(uploadErr) {
+              console.log('Upload hatasi:', uploadErr.message);
+            }
           }
-          console.log('fotUrl degeri:', fotUrl);
-          try {
-            await pool.query('INSERT INTO urunler (esnaf_id,ad,fiyat,fotograf_url) VALUES ($1,$2,$3,$4)', [esnafId, adlar[i], parseFloat(fiyatlar[i])||0, fotUrl]);
-            console.log('Urun eklendi:', adlar[i], fotUrl);
-          } catch(insertErr) {
-            console.log('Insert hatasi:', insertErr.message);
-          }
+          await pool.query('INSERT INTO urunler (esnaf_id,ad,fiyat,fotograf_url) VALUES ($1,$2,$3,$4)', [esnafId, adlar[i], parseFloat(fiyatlar[i])||0, fotUrl]);
+          console.log('Urun eklendi:', adlar[i], fotUrl);
         }
       }
-    
     }
 
     var waMesaj = 'Merhaba! Yakinda Ne Var uygulamasina kayit olmak istiyorum.%0A%0A' +
@@ -237,11 +239,16 @@ try {
   } catch(err) { res.status(500).json({ basari: false, mesaj: err.message }); }
 });
 
-// ADMİN
 app.get('/api/admin/bekleyenler', async function(req, res) {
   if (req.query.key !== 'yakinda2024') return res.status(401).json({ basari: false, mesaj: 'Yetkisiz' });
   try {
-    var result = await pool.query('SELECT e.*, json_agg(DISTINCT jsonb_build_object(\\\\\\'id\',u.id,\'ad\',u.ad,\'fiyat\',u.fiyat,\'fotograf_url\',u.fotograf_url,\'fotograf_url\',u.fotograf_url,\'fotograf_url\',u.fotograf_url,\'fotograf_url\',u.fotograf_url,\'fotograf_url\',u.fotograf_url,\'fotograf_url\',u.fotograf_url)) FILTER (WHERE u.id IS NOT NULL) as urunler FROM esnaflar e LEFT JOIN urunler u ON e.id=u.esnaf_id WHERE e.onaylandi=false GROUP BY e.id ORDER BY e.kayit_tarihi DESC');
+    var result = await pool.query(`
+      SELECT e.*, 
+        json_agg(DISTINCT jsonb_build_object('id',u.id,'ad',u.ad,'fiyat',u.fiyat,'fotograf_url',u.fotograf_url)) 
+        FILTER (WHERE u.id IS NOT NULL) as urunler 
+      FROM esnaflar e LEFT JOIN urunler u ON e.id=u.esnaf_id 
+      WHERE e.onaylandi=false GROUP BY e.id ORDER BY e.kayit_tarihi DESC
+    `);
     res.json({ basari: true, veri: result.rows });
   } catch(err) { res.status(500).json({ basari: false, mesaj: err.message }); }
 });
@@ -263,7 +270,6 @@ app.delete('/api/admin/reddet/:id', async function(req, res) {
   } catch(err) { res.status(500).json({ basari: false, mesaj: err.message }); }
 });
 
-// ÜRÜN EKLE
 app.post('/api/esnaflar/:id/urunler', async function(req, res) {
   try {
     var result = await pool.query('INSERT INTO urunler (esnaf_id,ad,fiyat,aciklama) VALUES ($1,$2,$3,$4) RETURNING *', [req.params.id, req.body.ad, parseFloat(req.body.fiyat), req.body.aciklama||'']);
@@ -271,7 +277,6 @@ app.post('/api/esnaflar/:id/urunler', async function(req, res) {
   } catch(err) { res.status(500).json({ basari: false, mesaj: err.message }); }
 });
 
-// YORUM EKLE
 app.post('/api/esnaflar/:id/yorumlar', async function(req, res) {
   try {
     await pool.query('INSERT INTO yorumlar (esnaf_id,kullanici,puan,yorum) VALUES ($1,$2,$3,$4)', [req.params.id, req.body.kullanici, parseInt(req.body.puan), req.body.yorum]);
@@ -283,7 +288,6 @@ app.post('/api/esnaflar/:id/yorumlar', async function(req, res) {
   } catch(err) { res.status(500).json({ basari: false, mesaj: err.message }); }
 });
 
-// SİPARİŞLER
 app.post('/api/siparisler', async function(req, res) {
   try {
     var esnaf = await pool.query('SELECT * FROM esnaflar WHERE id=$1', [req.body.esnaf_id]);
@@ -312,7 +316,6 @@ app.put('/api/siparisler/:id/durum', async function(req, res) {
   } catch(err) { res.status(500).json({ basari: false, mesaj: err.message }); }
 });
 
-// GÖRSEL ARAMA
 app.post('/api/gorsel-ara', upload.single('fotograf'), async function(req, res) {
   try {
     if (!req.file) return res.status(400).json({ basari: false, mesaj: 'Fotograf yuklenemedi' });
@@ -325,7 +328,7 @@ app.post('/api/gorsel-ara', upload.single('fotograf'), async function(req, res) 
     if (!kategori) for (var i=0;i<urunKelime.length;i++) { if (dosyaAdi.indexOf(urunKelime[i])>-1) {kategori='urun'; anahtar=urunKelime[i]; break;} }
     if (!kategori) for (var i=0;i<hizmetler.length;i++) { if (dosyaAdi.indexOf(hizmetler[i])>-1) {kategori='hizmet'; anahtar=hizmetler[i]; break;} }
     fs.unlink(req.file.path, function(){});
-    var query = 'SELECT e.*, json_agg(DISTINCT jsonb_build_object(\\\\\'id\',u.id,\'ad\',u.ad,\'fiyat\',u.fiyat,\'fotograf_url\',u.fotograf_url,\'fotograf_url\',u.fotograf_url,\'fotograf_url\',u.fotograf_url,\'fotograf_url\',u.fotograf_url)) FILTER (WHERE u.id IS NOT NULL) as urunler FROM esnaflar e LEFT JOIN urunler u ON e.id=u.esnaf_id WHERE e.onaylandi=true';
+    var query = `SELECT e.*, json_agg(DISTINCT jsonb_build_object('id',u.id,'ad',u.ad,'fiyat',u.fiyat,'fotograf_url',u.fotograf_url)) FILTER (WHERE u.id IS NOT NULL) as urunler FROM esnaflar e LEFT JOIN urunler u ON e.id=u.esnaf_id WHERE e.onaylandi=true`;
     var params = [];
     if (kategori) { query += ' AND e.kategori=$1'; params.push(kategori); }
     query += ' GROUP BY e.id';
@@ -338,7 +341,6 @@ app.get('/api/ilceler', function(req, res) {
   res.json({ basari: true, veri: ['Marmaris','Bodrum','Fethiye','Datca','Milas','Mugla Merkez'] });
 });
 
-// BAŞLAT
 tablolarOlustur().then(function() {
   app.listen(3000, function() {
     console.log('API calisiyor: http://localhost:3000');
