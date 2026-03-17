@@ -212,7 +212,7 @@ app.post('/api/esnaf-kayit', upload.fields([{name:'vergi_levhasi',maxCount:1},{n
           await pool.query('INSERT INTO urunler (esnaf_id,ad,fiyat,fotograf_url) VALUES ($1,$2,$3,$4)', [esnafId, adlar[i], parseFloat(fiyatlar[i])||0, fotUrl]);
         }
       }
-    }
+    
     }
 
     var waMesaj = 'Merhaba! Yakinda Ne Var uygulamasina kayit olmak istiyorum.%0A%0A' +
