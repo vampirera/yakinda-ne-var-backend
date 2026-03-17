@@ -48,7 +48,6 @@ async function tablolarOlustur() {
   `);
   await pool.query(`
    CREATE TABLE IF NOT EXISTS urunler (
-   await pool.query('ALTER TABLE urunler
   id SERIAL PRIMARY KEY,
   esnaf_id INTEGER REFERENCES esnaflar(id),
   ad VARCHAR(255) NOT NULL,
@@ -56,7 +55,7 @@ async function tablolarOlustur() {
   aciklama TEXT,
   fotograf_url TEXT
 )
-  `);
+  `);await pool.query('ALTER TABLE urunler
   await pool.query(`
     CREATE TABLE IF NOT EXISTS yorumlar (
       id SERIAL PRIMARY KEY,
