@@ -209,9 +209,14 @@ app.post('/api/esnaf-kayit', upload.fields([{name:'vergi_levhasi',maxCount:1},{n
           if (fotograflar[i]) {
             console.log('Fotograflar:', fotograflar);
 console.log('Fotograf i:', fotograflar[i]);
-            var uploadResult = await cloudinary.uploader.upload(fotograflar[i].path, { folder: 'yakinda-ne-var/urunler' });
-            fotUrl = uploadResult.secure_url;
-            fs.unlink(fotograflar[i].path, function(){});
+try {
+  var uploadResult = await cloudinary.uploader.upload(fotograflar[i].path, { folder: 'yakinda-ne-var/urunler' });
+  fotUrl = uploadResult.secure_url;
+  console.log('Upload basarili:', fotUrl);
+  fs.unlink(fotograflar[i].path, function(){});
+} catch(uploadErr) {
+  console.log('Upload hatasi:', uploadErr.message);
+}
           }
           await pool.query('INSERT INTO urunler (esnaf_id,ad,fiyat,fotograf_url) VALUES ($1,$2,$3,$4)', [esnafId, adlar[i], parseFloat(fiyatlar[i])||0, fotUrl]);
         }
