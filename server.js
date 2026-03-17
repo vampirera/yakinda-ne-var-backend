@@ -134,7 +134,7 @@ app.get('/api/esnaflar', async function(req, res) {
     var pi = 1;
     if (ilce) { query += ' AND LOWER(e.ilce)=$'+pi; params.push(ilce.toLowerCase()); pi++; }
     if (kategori) { query += ' AND e.kategori=$'+pi; params.push(kategori); pi++; }
-    if (arama) { query += ' AND (LOWER(e.ad) LIKE $'+pi+' OR e.kategori LIKE $'+pi+')'; params.push('%'+arama+'%'); pi++; }
+    if (arama) { query += ' AND (LOWER(e.ad) LIKE $'+pi+' OR LOWER(e.kategori) LIKE $'+pi+' OR EXISTS (SELECT 1 FROM urunler u2 WHERE u2.esnaf_id=e.id AND LOWER(u2.ad) LIKE $'+pi+'))'; params.push('%'+arama+'%'); pi++; }
     query += ' GROUP BY e.id';
 
     var result = await pool.query(query, params);
