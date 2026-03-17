@@ -206,6 +206,8 @@ app.post('/api/esnaf-kayit', upload.fields([{name:'vergi_levhasi',maxCount:1},{n
         if (adlar[i]) {
           var fotUrl = null;
           if (fotograflar[i]) {
+            console.log('Fotograflar:', fotograflar);
+console.log('Fotograf i:', fotograflar[i]);
             var uploadResult = await cloudinary.uploader.upload(fotograflar[i].path, { folder: 'yakinda-ne-var/urunler' });
             fotUrl = uploadResult.secure_url;
             fs.unlink(fotograflar[i].path, function(){});
