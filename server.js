@@ -218,6 +218,7 @@ try {
   console.log('Upload hatasi:', uploadErr.message);
 }
           }
+          console.log('fotUrl degeri:', fotUrl);
           await pool.query('INSERT INTO urunler (esnaf_id,ad,fiyat,fotograf_url) VALUES ($1,$2,$3,$4)', [esnafId, adlar[i], parseFloat(fiyatlar[i])||0, fotUrl]);
         }
       }
