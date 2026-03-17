@@ -55,7 +55,7 @@ async function tablolarOlustur() {
   aciklama TEXT,
   fotograf_url TEXT
 )
-  `);await pool.query('ALTER TABLE urunler
+ );await pool.query('ALTER TABLE urunler
   await pool.query(`
     CREATE TABLE IF NOT EXISTS yorumlar (
       id SERIAL PRIMARY KEY,
