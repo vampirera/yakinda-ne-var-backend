@@ -3,6 +3,13 @@ const cors = require('cors');
 const multer = require('multer');
 const fs = require('fs');
 const { Pool } = require('pg');
+const cloudinary = require('cloudinary').v2;
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
 const app = express();
 app.use(cors({ origin: '*', methods: ['GET','POST','PUT','DELETE'], allowedHeaders: ['Content-Type'] }));
@@ -40,13 +47,14 @@ async function tablolarOlustur() {
     )
   `);
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS urunler (
-      id SERIAL PRIMARY KEY,
-      esnaf_id INTEGER REFERENCES esnaflar(id),
-      ad VARCHAR(255) NOT NULL,
-      fiyat DECIMAL(10,2) DEFAULT 0,
-      aciklama TEXT
-    )
+   CREATE TABLE IF NOT EXISTS urunler (
+  id SERIAL PRIMARY KEY,
+  esnaf_id INTEGER REFERENCES esnaflar(id),
+  ad VARCHAR(255) NOT NULL,
+  fiyat DECIMAL(10,2) DEFAULT 0,
+  aciklama TEXT,
+  fotograf_url TEXT
+)
   `);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS yorumlar (
@@ -192,9 +200,19 @@ app.post('/api/esnaf-kayit', upload.fields([{name:'vergi_levhasi',maxCount:1},{n
     if (body.urun_adlari) {
       var adlar = Array.isArray(body.urun_adlari) ? body.urun_adlari : [body.urun_adlari];
       var fiyatlar = Array.isArray(body.urun_fiyatlari) ? body.urun_fiyatlari : [body.urun_fiyatlari];
+      var fotograflar = req.files['urun_fotograflari'] || [];
       for (var i=0; i<adlar.length; i++) {
-        if (adlar[i]) await pool.query('INSERT INTO urunler (esnaf_id,ad,fiyat) VALUES ($1,$2,$3)', [esnafId, adlar[i], parseFloat(fiyatlar[i])||0]);
+        if (adlar[i]) {
+          var fotUrl = null;
+          if (fotograflar[i]) {
+            var uploadResult = await cloudinary.uploader.upload(fotograflar[i].path, { folder: 'yakinda-ne-var/urunler' });
+            fotUrl = uploadResult.secure_url;
+            fs.unlink(fotograflar[i].path, function(){});
+          }
+          await pool.query('INSERT INTO urunler (esnaf_id,ad,fiyat,fotograf_url) VALUES ($1,$2,$3,$4)', [esnafId, adlar[i], parseFloat(fiyatlar[i])||0, fotUrl]);
+        }
       }
+    }
     }
 
     var waMesaj = 'Merhaba! Yakinda Ne Var uygulamasina kayit olmak istiyorum.%0A%0A' +
