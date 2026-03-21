@@ -264,7 +264,7 @@ app.post('/api/giris', function(req, res) {
 });
 
 tablolarOlustur().then(function() {
-  app.listen(3000, function() { console.log('API calisiyor: http://localhost:3000'); });
+    app.listen(process.env.PORT || 3000, function() { console.log('API calisiyor: http://localhost:' + (process.env.PORT || 3000)); });
 }).catch(function(err) {
   console.error('Veritabani hatasi:', err);
   process.exit(1);
