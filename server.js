@@ -252,6 +252,16 @@ app.get('/api/ilceler', function(req, res) {
   res.json({ basari: true, veri: ['Marmaris','Bodrum','Fethiye','Datca','Milas','Mugla Merkez'] });
 });
 
+app.post('/api/giris', function(req, res) {
+  var telefon = req.body.telefon;
+  var sifre = req.body.sifre;
+  if (telefon === process.env.ADMIN_TELEFON && sifre === process.env.ADMIN_SIFRE) {
+    res.json({ basari: true, rol: 'admin' });
+  } else {
+    res.status(401).json({ basari: false, mesaj: 'Hatali telefon veya sifre' });
+  }
+});
+
 tablolarOlustur().then(function() {
   app.listen(3000, function() { console.log('API calisiyor: http://localhost:3000'); });
 }).catch(function(err) {
